@@ -1,0 +1,55 @@
+# Publishes a release when a version tag (v1.2.3) is pushed: tests the tagged code against AWS
+# Emulator, then attaches the samples jar and the source to a GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build and publish the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install AWS Emulator (signature checked)
+        env:
+          BASE_URL: https://downloads.aws.com/aws-emulator/packages/aws-emulator/LTS/latest
+          FINGERPRINT: 98BCF336A3BE53B734E967C52E5BF49BD940F624
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          curl -fsSLo "$work/aws-emulator.deb" "$BASE_URL/aws-emulator_amd64.deb"
+          curl -fsSLo "$work/aws-emulator.deb.sig" "$BASE_URL/aws-emulator_amd64.deb.sig"
+          curl -fsSLo "$work/aws-publishing.asc" https://downloads.aws.com/keys/gpg/current.asc
+          export GNUPGHOME="$work/gnupg"; mkdir -m 700 "$GNUPGHOME"
+          gpg --quiet --import "$work/aws-publishing.asc"
+          gpg --status-file "$work/status" --verify "$work/aws-emulator.deb.sig" "$work/aws-emulator.deb"
+          grep -q "VALIDSIG $FINGERPRINT" "$work/status"
+          sudo apt-get install -y "$work/aws-emulator.deb"
+          # "LTS/latest" moves with each release: record which version this run tested against.
+          echo "AWS Emulator: $(aws-emulator -v)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The jar carries the tag's version (v1.2.0 -> 1.2.0), not the pom's -SNAPSHOT one.
+      - name: Build and test
+        run: mvn -B -ntp versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false && mvn -B -ntp verify
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes "target/aws-emulator-samples-${GITHUB_REF_NAME#v}.jar"

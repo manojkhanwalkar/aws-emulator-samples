@@ -1,0 +1,18 @@
+# Weekly update pull requests for the Maven dependencies (AWS SDK, JUnit, plugins) and the
+# GitHub Actions the workflows use (pinned to commit SHAs).
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      aws-sdk:
+        patterns: ["software.amazon.awssdk*"]
+      junit:
+        patterns: ["org.junit*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

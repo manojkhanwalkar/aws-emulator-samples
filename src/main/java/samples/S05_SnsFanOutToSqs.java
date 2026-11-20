@@ -25,6 +25,8 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
  */
 public final class S05_SnsFanOutToSqs {
 
+    private S05_SnsFanOutToSqs() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);

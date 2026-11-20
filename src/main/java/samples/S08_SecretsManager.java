@@ -13,6 +13,8 @@ import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
  */
 public final class S08_SecretsManager {
 
+    private S08_SecretsManager() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);

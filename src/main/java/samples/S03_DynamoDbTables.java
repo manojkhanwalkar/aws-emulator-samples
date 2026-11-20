@@ -21,6 +21,8 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
  */
 public final class S03_DynamoDbTables {
 
+    private S03_DynamoDbTables() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);

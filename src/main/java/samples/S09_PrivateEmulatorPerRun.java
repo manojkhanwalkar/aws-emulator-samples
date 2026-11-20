@@ -26,6 +26,8 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
  */
 public final class S09_PrivateEmulatorPerRun {
 
+    private S09_PrivateEmulatorPerRun() {}
+
     public static void main(String[] args) {
         System.out.println("== 9. A private emulator for each run ==");
         String table = "samples-private";

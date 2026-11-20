@@ -11,6 +11,8 @@ import samples.emulator.Emulator;
  */
 public final class RunAllSamples {
 
+    private RunAllSamples() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             S01_ConnectAndCheck.run(emulator);

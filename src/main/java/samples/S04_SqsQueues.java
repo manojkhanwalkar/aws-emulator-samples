@@ -14,6 +14,8 @@ import software.amazon.awssdk.services.sqs.model.Message;
  */
 public final class S04_SqsQueues {
 
+    private S04_SqsQueues() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);

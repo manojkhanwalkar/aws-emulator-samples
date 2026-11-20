@@ -21,6 +21,8 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  */
 public final class S02_S3Buckets {
 
+    private S02_S3Buckets() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);
