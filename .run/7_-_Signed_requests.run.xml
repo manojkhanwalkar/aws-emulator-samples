@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="7 - Signed requests" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="samples.S07_SignedRequests" />
+    <module name="aws-emulator-samples" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

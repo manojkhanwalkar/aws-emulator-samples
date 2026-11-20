@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="1 - Connect and check" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="samples.S01_ConnectAndCheck" />
+    <module name="aws-emulator-samples" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

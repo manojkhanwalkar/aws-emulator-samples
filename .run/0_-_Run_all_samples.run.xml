@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="0 - Run all samples" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="samples.RunAllSamples" />
+    <module name="aws-emulator-samples" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

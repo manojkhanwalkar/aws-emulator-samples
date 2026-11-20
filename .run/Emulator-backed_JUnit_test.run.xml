@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Emulator-backed JUnit test" type="JUnit" factoryName="JUnit">
+    <module name="aws-emulator-samples" />
+    <option name="PACKAGE_NAME" value="samples" />
+    <option name="MAIN_CLASS_NAME" value="samples.EmulatorBackedTest" />
+    <option name="TEST_OBJECT" value="class" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
