@@ -21,6 +21,8 @@ import software.amazon.awssdk.services.sts.model.GetCallerIdentityResponse;
  */
 public final class S01_ConnectAndCheck {
 
+    private S01_ConnectAndCheck() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);

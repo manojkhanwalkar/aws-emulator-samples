@@ -102,7 +102,7 @@ class EmulatorBackedTest {
     }
 
     /** True if the {@code aws-emulator} command is on the PATH. */
-    private static boolean isInstalled() {
+    static boolean isInstalled() {
         String path = System.getenv("PATH");
         if (path == null) {
             return false;

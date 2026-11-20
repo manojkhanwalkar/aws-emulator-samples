@@ -1,0 +1,86 @@
+# Build and test every sample against a real AWS Emulator, and enforce the coverage gate.
+# Actions are pinned to commit SHAs (tag in the trailing comment); Dependabot keeps them current.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    name: Build & test (Java ${{ matrix.java }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # The lowest version the project supports, and the newest.
+        java: ["21", "26"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      # The tests start their own private emulators, so the emulator must be installed (not running).
+      # The package is checked against AWS's signing key before it is installed.
+      - name: Install AWS Emulator (signature checked)
+        env:
+          BASE_URL: https://downloads.aws.com/aws-emulator/packages/aws-emulator/LTS/latest
+          FINGERPRINT: 98BCF336A3BE53B734E967C52E5BF49BD940F624
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          curl -fsSLo "$work/aws-emulator.deb" "$BASE_URL/aws-emulator_amd64.deb"
+          curl -fsSLo "$work/aws-emulator.deb.sig" "$BASE_URL/aws-emulator_amd64.deb.sig"
+          curl -fsSLo "$work/aws-publishing.asc" https://downloads.aws.com/keys/gpg/current.asc
+          export GNUPGHOME="$work/gnupg"; mkdir -m 700 "$GNUPGHOME"
+          gpg --quiet --import "$work/aws-publishing.asc"
+          gpg --status-fd 1 --verify "$work/aws-emulator.deb.sig" "$work/aws-emulator.deb" \
+            | grep -q "VALIDSIG $FINGERPRINT"
+          sudo apt-get install -y "$work/aws-emulator.deb"
+          aws-emulator -v
+
+      # verify runs the tests and fails below 95% line coverage (jacoco:check, see pom.xml).
+      - name: Build, test and coverage gate
+        run: mvn -B -ntp verify
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          csv=target/site/jacoco/jacoco.csv
+          if [ -f "$csv" ]; then
+            awk -F, 'NR>1 {m+=$8; c+=$9} END {printf "Line coverage: %.1f%% (%d of %d lines)\n", 100*c/(m+c), c, m+c}' "$csv" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: coverage-java${{ matrix.java }}
+          path: target/site/jacoco/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: test-reports-java${{ matrix.java }}
+          path: target/surefire-reports/
+          retention-days: 7

@@ -34,6 +34,8 @@ import software.amazon.awssdk.services.sts.model.StsException;
  */
 public final class S07_SignedRequests {
 
+    private S07_SignedRequests() {}
+
     public static void main(String[] args) {
         try (Emulator emulator = Emulator.connect()) {
             run(emulator);

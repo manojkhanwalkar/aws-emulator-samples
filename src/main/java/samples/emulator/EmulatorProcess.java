@@ -74,6 +74,11 @@ public final class EmulatorProcess implements AutoCloseable {
         List<String> command = new ArrayList<>(List.of("aws-emulator", "-p", "0", "-t", "off",
                 "--idle-timeout", Long.toString(Math.max(1, idleTimeout.toSeconds()))));
         command.addAll(List.of(extraOptions));
+        return start(command, Duration.ofSeconds(30));
+    }
+
+    /** Starts {@code command} as the emulator and waits up to {@code startupTimeout} for its startup line. */
+    static EmulatorProcess start(List<String> command, Duration startupTimeout) {
         Process process;
         try {
             // Standard error only carries a one-line telemetry notice; the log we need is on standard output.
@@ -88,11 +93,11 @@ public final class EmulatorProcess implements AutoCloseable {
         reader.setDaemon(true);
         reader.start();
         try {
-            int port = startupPort.get(30, TimeUnit.SECONDS);
+            int port = startupPort.get(startupTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return new EmulatorProcess(process, port);
         } catch (TimeoutException | ExecutionException e) {
             process.destroyForcibly();
-            throw new IllegalStateException("aws-emulator did not start within 30 seconds", e);
+            throw new IllegalStateException("aws-emulator did not start within " + startupTimeout.toSeconds() + " seconds", e);
         } catch (InterruptedException e) {
             process.destroyForcibly();
             Thread.currentThread().interrupt();

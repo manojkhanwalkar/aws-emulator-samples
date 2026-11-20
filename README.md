@@ -1,5 +1,8 @@
 # AWS Emulator samples
 
+[![CI](https://github.com/manojkhanwalkar/aws-emulator-samples/actions/workflows/ci.yml/badge.svg)](https://github.com/manojkhanwalkar/aws-emulator-samples/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/manojkhanwalkar/aws-emulator-samples/actions/workflows/codeql.yml/badge.svg)](https://github.com/manojkhanwalkar/aws-emulator-samples/actions/workflows/codeql.yml)
+
 Small, commented Java programs that show how to use **[AWS Emulator](https://docs.aws.amazon.com/emulator/latest/userguide/what-is-service.html)**,
 AWS's own local emulator of the AWS APIs. You test code that calls AWS on your own machine: no AWS
 account needed, and your requests and data never go to AWS.
@@ -187,6 +190,29 @@ All samples ran.
   That replaces the JVM's default trust store, so other HTTPS calls from that JVM then fail; this is why
   `Emulator` trusts `ca.pem` in its SDK clients only.
 
+## How the project is checked
+
+Every pull request runs:
+
+| Workflow | What it does |
+|---|---|
+| **CI** (`.github/workflows/ci.yml`) | Installs AWS Emulator (after checking AWS's signature), then runs `mvn verify` on Java 21 and 26. The tests run every sample against private emulators, and the build fails below 95% line coverage. |
+| **CodeQL** | Static analysis of the Java code and the workflows; findings appear under *Security › Code scanning* |
+| **Security** | Dependency review (fails on a new high or critical vulnerability) and a Gitleaks secret scan |
+
+A version tag (`git tag v1.0.0 && git push origin v1.0.0`) runs **Release**, which tests the tagged
+code and publishes a GitHub release with the jar. Dependabot opens weekly update pull requests for the
+Maven dependencies and the (SHA-pinned) actions. Changes go through pull requests to `main`, which is
+protected: the checks above must pass.
+
+To run the same checks locally (AWS Emulator installed, nothing else needed):
+
+```bash
+mvn verify        # tests + coverage report in target/site/jacoco/index.html (fails below 95%)
+```
+
+Without AWS Emulator installed, the tests are skipped; build with `mvn verify -Djacoco.skip=true`.
+
 ## Project layout
 
 ```text
@@ -199,5 +225,6 @@ src/main/java/samples/
   S01_… to S09_…                the samples
   RunAllSamples.java            runs them all in order
 src/main/resources/simplelogger.properties   SDK logging level (warn; set debug to see requests)
-src/test/java/samples/EmulatorBackedTest.java a JUnit test with its own emulator
+src/test/java/samples/            JUnit tests: every sample against a private emulator, and the helpers
+.github/                          CI, CodeQL, security checks, release, Dependabot, PR template
 ```

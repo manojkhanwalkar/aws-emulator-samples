@@ -26,6 +26,9 @@
         <slf4j.version>2.0.20</slf4j.version>
         <!-- What `mvn exec:java` runs; pick another sample with -Dexec.mainClass=samples.S02_S3Buckets -->
         <exec.mainClass>samples.RunAllSamples</exec.mainClass>
+        <jacoco.version>0.8.16</jacoco.version>
+        <!-- Line coverage `mvn verify` requires (CI runs the tests with AWS Emulator installed). -->
+        <coverage.minimum>0.95</coverage.minimum>
     </properties>
 
     <dependencyManagement>
@@ -106,6 +109,44 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.6</version>
+            </plugin>
+            <!-- Coverage: the report is in target/site/jacoco/index.html after `mvn verify`, and the
+                 build fails below the minimum. Without aws-emulator installed the tests are skipped,
+                 so run `mvn verify -Djacoco.skip=true` on such a machine. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${coverage.minimum}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Lets you run a sample from a terminal too:
                  mvn -q compile exec:java -Dexec.mainClass=samples.S01_ConnectAndCheck -->
