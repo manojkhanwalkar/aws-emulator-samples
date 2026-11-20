@@ -95,9 +95,12 @@ public final class EmulatorProcess implements AutoCloseable {
         try {
             int port = startupPort.get(startupTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return new EmulatorProcess(process, port);
-        } catch (TimeoutException | ExecutionException e) {
+        } catch (TimeoutException e) {
             process.destroyForcibly();
-            throw new IllegalStateException("aws-emulator did not start within " + startupTimeout.toSeconds() + " seconds", e);
+            throw new IllegalStateException("aws-emulator did not start within " + startupTimeout, e);
+        } catch (ExecutionException e) {
+            process.destroyForcibly();
+            throw new IllegalStateException("aws-emulator exited before it was ready: " + e.getCause().getMessage(), e);
         } catch (InterruptedException e) {
             process.destroyForcibly();
             Thread.currentThread().interrupt();

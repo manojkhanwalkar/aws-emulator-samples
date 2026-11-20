@@ -44,7 +44,7 @@ class EmulatorBackedTest {
 
     @BeforeAll
     static void startEmulator() {
-        assumeTrue(isInstalled(), "aws-emulator is not installed: skipping (see README.md)");
+        assumeTrue(samples.emulator.EmulatorBackedTestSupport.isInstalled(), "aws-emulator is not installed: skipping (see README.md)");
         process = EmulatorProcess.start();
         emulator = process.emulator();
     }
@@ -99,19 +99,5 @@ class EmulatorBackedTest {
             assertFalse(Files.exists(open.directory().resolve("emulator_credentials")));
             assertEquals(Emulator.ACCOUNT_ID, sts.getCallerIdentity().account());
         }
-    }
-
-    /** True if the {@code aws-emulator} command is on the PATH. */
-    static boolean isInstalled() {
-        String path = System.getenv("PATH");
-        if (path == null) {
-            return false;
-        }
-        for (String dir : path.split(java.io.File.pathSeparator)) {
-            if (Files.isExecutable(Path.of(dir, "aws-emulator"))) {
-                return true;
-            }
-        }
-        return false;
     }
 }

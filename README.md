@@ -203,7 +203,7 @@ Every pull request runs:
 A version tag (`git tag v1.0.0 && git push origin v1.0.0`) runs **Release**, which tests the tagged
 code and publishes a GitHub release with the jar. Dependabot opens weekly update pull requests for the
 Maven dependencies and the (SHA-pinned) actions. Changes go through pull requests to `main`, which is
-protected: the checks above must pass.
+protected: the CI and security checks must pass before a merge.
 
 To run the same checks locally (AWS Emulator installed, nothing else needed):
 
@@ -211,7 +211,8 @@ To run the same checks locally (AWS Emulator installed, nothing else needed):
 mvn verify        # tests + coverage report in target/site/jacoco/index.html (fails below 95%)
 ```
 
-Without AWS Emulator installed, the tests are skipped; build with `mvn verify -Djacoco.skip=true`.
+Without AWS Emulator installed, the emulator-backed tests are skipped (a few helper tests still run, using
+the POSIX `sleep` and `true` commands), so build with `mvn verify -Djacoco.skip=true`.
 
 ## Project layout
 

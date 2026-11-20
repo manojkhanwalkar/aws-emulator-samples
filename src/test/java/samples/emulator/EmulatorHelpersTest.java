@@ -27,46 +27,55 @@ class EmulatorHelpersTest {
     void anEmulatorThatNeverReportsReadyTimesOut() {
         IllegalStateException e = assertThrows(IllegalStateException.class,
                 () -> EmulatorProcess.start(List.of("sleep", "30"), Duration.ofMillis(500)));
-        assertTrue(e.getMessage().contains("did not start"), e.getMessage());
+        assertTrue(e.getMessage().contains("did not start within PT0.5S"), e.getMessage());
     }
 
     @Test
     void anEmulatorThatExitsBeforeItIsReadyIsReported() {
-        assertThrows(IllegalStateException.class, () -> EmulatorProcess.start(List.of("true"), Duration.ofSeconds(10)));
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> EmulatorProcess.start(List.of("true"), Duration.ofSeconds(10)));
+        assertTrue(e.getMessage().contains("exited before it was ready"), e.getMessage());
     }
 
     @Test
     void filesLeftBehindWithoutARunningEmulatorAreNotMistakenForOne(@TempDir Path home) throws Exception {
-        assumeTrue(installed(), "aws-emulator is not installed: skipping");
+        assumeTrue(EmulatorBackedTestSupport.isInstalled(), "aws-emulator is not installed: skipping");
         int unused;
         try (ServerSocket socket = new ServerSocket(0)) {
             unused = socket.getLocalPort();
         }
         String realHome = System.getProperty("user.home");
-        String previousPort = System.getProperty("emulator.port");
-        try (EmulatorProcess process = EmulatorProcess.start();
-             Emulator running = process.emulator()) {
-            // A crashed emulator leaves its files behind: copy a real run's files to a port where nothing runs.
-            Path stale = Files.createDirectories(home.resolve(".aws/emulator/" + unused));
-            for (String file : List.of("ca.pem", "emulator_credentials", "config")) {
-                Files.copy(running.directory().resolve(file), stale.resolve(file));
+        Path realFolder;
+        try (EmulatorProcess process = EmulatorProcess.start()) {
+            realFolder = Path.of(realHome, ".aws", "emulator", Integer.toString(process.port()));
+            try (Emulator running = process.emulator()) {
+                // A crashed emulator leaves its files behind: copy a real run's files to a port where nothing runs.
+                Path stale = Files.createDirectories(home.resolve(".aws/emulator/" + unused));
+                for (String file : List.of("ca.pem", "emulator_credentials", "config")) {
+                    Files.copy(running.directory().resolve(file), stale.resolve(file));
+                }
             }
+            String previousPort = System.getProperty("emulator.port");
+            // user.home points at the temporary folder only inside this block, and is restored before
+            // the emulator stops, so close() cleans up the real folder.
             System.setProperty("user.home", home.toString());
             System.setProperty("emulator.port", Integer.toString(unused));
-
-            try (Emulator stalePort = Emulator.at(unused)) {
-                assertFalse(stalePort.isHealthy());
-            }
-            IllegalStateException e = assertThrows(IllegalStateException.class, Emulator::connect);
-            assertTrue(e.getMessage().contains("does not answer its health check"), e.getMessage());
-        } finally {
-            System.setProperty("user.home", realHome);
-            if (previousPort == null) {
-                System.clearProperty("emulator.port");
-            } else {
-                System.setProperty("emulator.port", previousPort);
+            try {
+                try (Emulator stalePort = Emulator.at(unused)) {
+                    assertFalse(stalePort.isHealthy());
+                }
+                IllegalStateException e = assertThrows(IllegalStateException.class, Emulator::connect);
+                assertTrue(e.getMessage().contains("does not answer its health check"), e.getMessage());
+            } finally {
+                System.setProperty("user.home", realHome);
+                if (previousPort == null) {
+                    System.clearProperty("emulator.port");
+                } else {
+                    System.setProperty("emulator.port", previousPort);
+                }
             }
         }
+        assertFalse(Files.exists(realFolder), "close() must remove " + realFolder);
     }
 
     @Test
@@ -99,7 +108,7 @@ class EmulatorHelpersTest {
 
     @Test
     void anInterruptedHealthCheckAnswersNoAndKeepsTheInterrupt() {
-        assumeTrue(installed(), "aws-emulator is not installed: skipping");
+        assumeTrue(EmulatorBackedTestSupport.isInstalled(), "aws-emulator is not installed: skipping");
         try (EmulatorProcess process = EmulatorProcess.start();
              Emulator emulator = process.emulator()) {
             Thread.currentThread().interrupt();
@@ -110,14 +119,5 @@ class EmulatorHelpersTest {
                 Thread.interrupted();
             }
         }
-    }
-
-    private static boolean installed() {
-        for (String dir : System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator)) {
-            if (Files.isExecutable(Path.of(dir, "aws-emulator"))) {
-                return true;
-            }
-        }
-        return false;
     }
 }

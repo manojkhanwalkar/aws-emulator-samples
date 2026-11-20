@@ -28,7 +28,7 @@ class SamplesTest {
 
     @BeforeAll
     static void startEmulator() {
-        assumeTrue(EmulatorBackedTest.isInstalled(), "aws-emulator is not installed: skipping (see README.md)");
+        assumeTrue(samples.emulator.EmulatorBackedTestSupport.isInstalled(), "aws-emulator is not installed: skipping (see README.md)");
         process = EmulatorProcess.start();
         emulator = process.emulator();
     }
@@ -82,6 +82,8 @@ class SamplesTest {
         assertTrue(out.contains("HTTP 400  ValidationException"), out);
         assertTrue(out.contains("HTTP 404  NoSuchBucket"), out);
         assertTrue(out.contains("NonExistentQueue"), out);
+        assertTrue(out.contains("(caught as the typed NoSuchBucketException)"), out);
+        assertTrue(out.contains("(caught as the typed QueueDoesNotExistException)"), out);
     }
 
     @Test
