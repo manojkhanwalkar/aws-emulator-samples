@@ -1,5 +1,7 @@
 # Weekly update pull requests for the Maven dependencies (AWS SDK, JUnit, plugins) and the
 # GitHub Actions the workflows use (pinned to commit SHAs).
+# Minor and patch bumps not in a named group arrive as one grouped PR per ecosystem
+# (claude-skills efficiency.md, rule 4); majors stay separate.
 version: 2
 updates:
   - package-ecosystem: maven
@@ -11,8 +13,15 @@ updates:
         patterns: ["software.amazon.awssdk*"]
       junit:
         patterns: ["org.junit*"]
+      maven-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
