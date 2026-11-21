@@ -71,7 +71,7 @@ class MoreSamplesTest {
     @Test
     void theCliScriptWorksWithEnvironmentVariablesOnly(Emulator emulator) throws IOException, InterruptedException {
         assumeTrue(onPath("aws"), "the AWS CLI is not installed: skipping");
-        ProcessBuilder script = new ProcessBuilder("bash", "scripts/cli-sample.sh").redirectErrorStream(true);
+        ProcessBuilder script = new ProcessBuilder("/usr/bin/env", "bash", "scripts/cli-sample.sh").redirectErrorStream(true);
         script.environment().put("AWS_EMULATOR_PORT", Integer.toString(emulator.port()));
         // Make sure real keys in the test's environment cannot leak in: the script unsets them itself.
         script.environment().put("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE");
