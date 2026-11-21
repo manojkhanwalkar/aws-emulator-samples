@@ -78,7 +78,9 @@ public final class S10_IamAndStsKeys {
                     attempt("GetCallerIdentity with the deleted key ", () -> asUser.getCallerIdentity().arn());
                 }
             } finally {
-                iam.deleteUserPolicy(p -> p.userName(userName).policyName("list-buckets"));
+                // Each step only if it applies: an earlier failure may have skipped the policy or left the key.
+                ignoreMissing(() -> iam.deleteUserPolicy(p -> p.userName(userName).policyName("list-buckets")));
+                ignoreMissing(() -> iam.deleteAccessKey(d -> d.userName(userName).accessKeyId(key.accessKeyId())));
                 iam.deleteUser(u -> u.userName(userName));
             }
 
@@ -113,5 +115,14 @@ public final class S10_IamAndStsKeys {
     /** Makes one call and prints whether the emulator accepted or refused it. */
     private static void attempt(String what, Supplier<String> call) {
         System.out.println(what + ": " + Checks.outcome(call));
+    }
+
+    /** Runs a clean-up step, ignoring "it isn't there" (NoSuchEntity). */
+    private static void ignoreMissing(Runnable step) {
+        try {
+            step.run();
+        } catch (software.amazon.awssdk.services.iam.model.NoSuchEntityException alreadyGone) {
+            // never created, or already deleted
+        }
     }
 }

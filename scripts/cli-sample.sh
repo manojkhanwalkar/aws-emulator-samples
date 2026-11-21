@@ -27,6 +27,10 @@ export AWS_PAGER=""                                          # print, don't page
 # Environment keys win over the credentials file: unset them, or the CLI signs with your real keys
 # (and the emulator refuses them).
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE
+# Other settings that could send calls elsewhere or sign with other credentials: unset them too.
+unset AWS_IGNORE_CONFIGURED_ENDPOINT_URLS AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN AWS_ROLE_SESSION_NAME \
+      AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_CREDENTIALS_RELATIVE_URI AWS_CONTAINER_AUTHORIZATION_TOKEN
+for v in $(compgen -v AWS_ENDPOINT_URL_); do unset "$v"; done   # per-service endpoints override AWS_ENDPOINT_URL
 
 echo "== 13. The AWS CLI with environment variables =="
 if [[ ! -f "$DIR/ca.pem" ]]; then
@@ -39,7 +43,11 @@ for _ in $(seq 30); do
   if curl -sf --cacert "$AWS_CA_BUNDLE" "$AWS_ENDPOINT_URL/__admin/health" >/dev/null; then break; fi
   sleep 1
 done
-echo "Health check: $(curl -sf --cacert "$AWS_CA_BUNDLE" "$AWS_ENDPOINT_URL/__admin/health")"
+HEALTH=$(curl -sf --cacert "$AWS_CA_BUNDLE" "$AWS_ENDPOINT_URL/__admin/health") || {
+  echo "The emulator on port $PORT is not healthy after 30 seconds." >&2
+  exit 1
+}
+echo "Health check: $HEALTH"
 
 # 3. Who am I? The emulator always answers with account 000000000000.
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -53,11 +61,11 @@ echo "-> Account 000000000000: the CLI talks to the emulator, not AWS."
 # 4. Ordinary CLI commands from here on: an S3 round trip.
 BUCKET="samples-cli-$(date +%s)-$$"           # unique, lower case
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+# On any exit, including a failed step: remove the temp folder and the bucket (if it was made).
+trap 'rm -rf "$TMP"; aws s3 rb "s3://$BUCKET" --force >/dev/null 2>&1 || true' EXIT
 echo "hello from the AWS CLI" > "$TMP/note.txt"
 aws s3api create-bucket --bucket "$BUCKET" >/dev/null
 aws s3 cp "$TMP/note.txt" "s3://$BUCKET/note.txt" --only-show-errors
 echo "Read back from s3://$BUCKET/note.txt: $(aws s3 cp "s3://$BUCKET/note.txt" - --only-show-errors)"
-aws s3 rm "s3://$BUCKET/note.txt" --only-show-errors
-aws s3api delete-bucket --bucket "$BUCKET"
+aws s3 rb "s3://$BUCKET" --force >/dev/null
 echo "Deleted the bucket"

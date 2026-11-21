@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import samples.emulator.Emulator;
 import samples.junit.WithAwsEmulator;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 
 /**
  * Runs samples 10 to 22, 25 and the CLI script (13) the way IntelliJ does, through their
@@ -74,9 +75,18 @@ class MoreSamplesTest {
         script.environment().put("AWS_EMULATOR_PORT", Integer.toString(emulator.port()));
         // Make sure real keys in the test's environment cannot leak in: the script unsets them itself.
         script.environment().put("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE");
+        Path log = Files.createTempFile("cli-sample", ".log");
+        script.redirectOutput(log.toFile());
         Process process = script.start();
-        String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        assertTrue(process.waitFor(60, TimeUnit.SECONDS));
+        String out;
+        try {
+            // The output goes to a file, so the timeout applies even if the script hangs.
+            assertTrue(process.waitFor(60, TimeUnit.SECONDS), "cli-sample.sh did not finish in 60 seconds");
+        } finally {
+            process.destroyForcibly();
+            out = Files.readString(log, StandardCharsets.UTF_8);
+            Files.deleteIfExists(log);
+        }
         System.out.print(out);
         assertEquals(0, process.exitValue(), out);
         assertTrue(out.contains("Account: 000000000000"), out);
@@ -109,6 +119,7 @@ class MoreSamplesTest {
         assertTrue(out.contains("FunctionError Unhandled"), out);
         assertTrue(out.contains("\"greeting\":\"Hello, Grace\""), out);
         assertTrue(out.contains("java21  -> "), out);
+        assertNoLambdaLogGroupsLeft(emulator);
     }
 
     @Test
@@ -117,6 +128,15 @@ class MoreSamplesTest {
         assertTrue(out.contains("SUCCEEDED -> {\"orderId\":\"o-17\",\"net\":120,\"gross\":132.0,\"route\":\"needs approval\"}"), out);
         assertTrue(out.contains("\"route\":\"ship now\""), out);
         assertTrue(out.contains("With host prefixes on, StartSyncExecution fails"), out);
+        assertNoLambdaLogGroupsLeft(emulator);
+    }
+
+    /** The samples delete what they make, log groups included, so repeated runs leave nothing behind. */
+    private static void assertNoLambdaLogGroupsLeft(Emulator emulator) {
+        try (CloudWatchLogsClient logs = emulator.client(CloudWatchLogsClient.builder())) {
+            assertEquals(java.util.List.of(), logs.describeLogGroups(d -> d.logGroupNamePrefix("/aws/lambda/samples-"))
+                    .logGroups().stream().map(g -> g.logGroupName()).toList());
+        }
     }
 
     @Test
@@ -152,7 +172,7 @@ class MoreSamplesTest {
         assertTrue(out.contains("Completed: one object of 6 MiB"), out);
         assertTrue(out.contains("still gives: \"terms, version 1\""), out);
         assertTrue(out.contains("GET now:            HTTP 200 \"Q3 report\""), out);
-        assertTrue(out.contains("GET after 3 seconds: HTTP 403"), out);
+        assertTrue(out.contains("GET after 6 seconds: HTTP 403"), out);
     }
 
     @Test

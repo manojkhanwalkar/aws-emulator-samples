@@ -5,6 +5,7 @@ import java.util.Base64;
 import java.util.List;
 import samples.emulator.Emulator;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.lambda.model.InvokeResponse;
@@ -70,7 +71,8 @@ public final class S16_LambdaFunctions {
         String java = "samples-hello-java-" + suffix;
 
         try (LambdaClient lambda = emulator.client(LambdaClient.builder());
-             IamClient iam = emulator.client(IamClient.builder())) {
+             IamClient iam = emulator.client(IamClient.builder());
+             CloudWatchLogsClient logs = emulator.client(CloudWatchLogsClient.builder())) {
             // Every function needs an execution role, here as on AWS.
             String roleArn = LambdaFunctions.createRole(iam, roleName, "lambda.amazonaws.com", LambdaFunctions.LOGS_POLICY);
             try {
@@ -105,10 +107,11 @@ public final class S16_LambdaFunctions {
                     } catch (LambdaException notCreated) {
                         // an earlier step failed before creating it
                     }
+                    LambdaFunctions.deleteLogGroup(logs, function);
                 }
                 LambdaFunctions.deleteRole(iam, roleName);
             }
-            System.out.println("Deleted the functions and the role");
+            System.out.println("Deleted the functions, their log groups and the role");
         }
         System.out.println();
     }

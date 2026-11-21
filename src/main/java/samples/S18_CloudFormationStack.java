@@ -81,50 +81,75 @@ public final class S18_CloudFormationStack {
              S3Client s3 = emulator.client(S3Client.builder().forcePathStyle(true));
              DynamoDbClient dynamo = emulator.client(DynamoDbClient.builder());
              SqsClient sqs = emulator.client(SqsClient.builder())) {
-            // 1. Create the stack and wait until CloudFormation has created every resource.
-            cfn.createStack(c -> c.stackName(stackName).templateBody(TEMPLATE)
-                    .parameters(p -> p.parameterKey("Suffix").parameterValue(suffix)));
-            Stack stack = cfn.waiter().waitUntilStackCreateComplete(d -> d.stackName(stackName)).matched().response()
-                    .orElseThrow().stacks().getFirst();
-            System.out.println("Stack " + stackName + ": " + stack.stackStatus());
-            cfn.describeStackResources(r -> r.stackName(stackName)).stackResources().forEach(r -> System.out.println(
-                    "  " + r.logicalResourceId() + " (" + r.resourceType() + "): " + r.physicalResourceId()));
+            boolean deleted = false;
+            try {
+                // 1. Create the stack and wait until CloudFormation has created every resource.
+                cfn.createStack(c -> c.stackName(stackName).templateBody(TEMPLATE)
+                        .parameters(p -> p.parameterKey("Suffix").parameterValue(suffix)));
+                Stack stack = cfn.waiter().waitUntilStackCreateComplete(d -> d.stackName(stackName)).matched().response()
+                        .orElseThrow().stacks().getFirst();
+                System.out.println("Stack " + stackName + ": " + stack.stackStatus());
+                cfn.describeStackResources(r -> r.stackName(stackName)).stackResources().forEach(r -> System.out.println(
+                        "  " + r.logicalResourceId() + " (" + r.resourceType() + "): " + r.physicalResourceId()));
 
-            // 2. The outputs name the resources; the code below never hard-codes a name.
-            Map<String, String> outputs = stack.outputs().stream()
-                    .collect(Collectors.toMap(Output::outputKey, Output::outputValue));
-            System.out.println("Outputs: " + outputs.keySet());
-            String bucket = outputs.get("BucketName");
-            s3.putObject(p -> p.bucket(bucket).key("hello.txt"), RequestBody.fromString("made by a stack"));
-            dynamo.putItem(p -> p.tableName(outputs.get("TableName"))
-                    .item(Map.of("orderId", AttributeValue.fromS("o-1"), "status", AttributeValue.fromS("NEW"))));
-            sqs.sendMessage(m -> m.queueUrl(outputs.get("QueueUrl")).messageBody("job for o-1"));
-            System.out.println("Used them: wrote an object (\""
-                    + s3.getObject(g -> g.bucket(bucket).key("hello.txt"), ResponseTransformer.toBytes()).asUtf8String()
-                    + "\"), an item and a message");
-            // Properties from the template reached the resource:
-            String visibility = sqs.getQueueAttributes(a -> a.queueUrl(outputs.get("QueueUrl"))
-                    .attributeNamesWithStrings("VisibilityTimeout")).attributesAsStrings().get("VisibilityTimeout");
-            System.out.println("The queue's VisibilityTimeout, set in the template: " + visibility);
+                // 2. The outputs name the resources; the code below never hard-codes a name.
+                Map<String, String> outputs = stack.outputs().stream()
+                        .collect(Collectors.toMap(Output::outputKey, Output::outputValue));
+                System.out.println("Outputs: " + outputs.keySet());
+                String bucket = outputs.get("BucketName");
+                s3.putObject(p -> p.bucket(bucket).key("hello.txt"), RequestBody.fromString("made by a stack"));
+                dynamo.putItem(p -> p.tableName(outputs.get("TableName"))
+                        .item(Map.of("orderId", AttributeValue.fromS("o-1"), "status", AttributeValue.fromS("NEW"))));
+                sqs.sendMessage(m -> m.queueUrl(outputs.get("QueueUrl")).messageBody("job for o-1"));
+                System.out.println("Used them: wrote an object (\""
+                        + s3.getObject(g -> g.bucket(bucket).key("hello.txt"), ResponseTransformer.toBytes()).asUtf8String()
+                        + "\"), an item and a message");
+                // Properties from the template reached the resource:
+                String visibility = sqs.getQueueAttributes(a -> a.queueUrl(outputs.get("QueueUrl"))
+                        .attributeNamesWithStrings("VisibilityTimeout")).attributesAsStrings().get("VisibilityTimeout");
+                System.out.println("The queue's VisibilityTimeout, set in the template: " + visibility);
 
-            // 3. Delete the stack while the bucket still holds an object.
-            cfn.deleteStack(d -> d.stackName(stackName));
-            StackStatus afterFirstDelete = waitWhileInProgress(cfn, stackName);
-            if (afterFirstDelete == StackStatus.DELETE_FAILED) {
-                System.out.println("DeleteStack with a non-empty bucket: DELETE_FAILED, as on AWS. Emptying the bucket.");
-                s3.deleteObject(d -> d.bucket(bucket).key("hello.txt"));
+                // 3. Delete the stack while the bucket still holds an object.
                 cfn.deleteStack(d -> d.stackName(stackName));
-                afterFirstDelete = waitWhileInProgress(cfn, stackName);
-            } else {
-                System.out.println("DeleteStack with a non-empty bucket: " + afterFirstDelete
-                        + " (on AWS: DELETE_FAILED, the bucket is not empty)");
+                StackStatus afterFirstDelete = waitWhileInProgress(cfn, stackName);
+                if (afterFirstDelete == StackStatus.DELETE_FAILED) {
+                    System.out.println("DeleteStack with a non-empty bucket: DELETE_FAILED, as on AWS. Emptying the bucket.");
+                    s3.deleteObject(d -> d.bucket(bucket).key("hello.txt"));
+                    cfn.deleteStack(d -> d.stackName(stackName));
+                    afterFirstDelete = waitWhileInProgress(cfn, stackName);
+                } else {
+                    System.out.println("DeleteStack with a non-empty bucket: " + afterFirstDelete
+                            + " (on AWS: DELETE_FAILED, the bucket is not empty)");
+                }
+                System.out.println("Stack after delete: " + afterFirstDelete);
+                deleted = afterFirstDelete == StackStatus.DELETE_COMPLETE;
+                boolean tableGone = !dynamo.listTables().tableNames().contains(outputs.get("TableName"));
+                boolean bucketGone = s3.listBuckets().buckets().stream().noneMatch(b -> b.name().equals(bucket));
+                System.out.println("Deleting the stack deleted its resources: table " + tableGone + ", bucket " + bucketGone);
+            } finally {
+                if (!deleted) {
+                    cleanUpAfterFailure(cfn, s3, stackName);
+                }
             }
-            System.out.println("Stack after delete: " + afterFirstDelete);
-            boolean tableGone = !dynamo.listTables().tableNames().contains(outputs.get("TableName"));
-            boolean bucketGone = s3.listBuckets().buckets().stream().noneMatch(b -> b.name().equals(bucket));
-            System.out.println("Deleting the stack deleted its resources: table " + tableGone + ", bucket " + bucketGone);
         }
         System.out.println();
+    }
+
+    /**
+     * If the sample failed part way, removes what it made, so nothing is left in a long-lived emulator:
+     * empties the stack's bucket (CloudFormation cannot delete a non-empty one), then deletes the stack.
+     */
+    private static void cleanUpAfterFailure(CloudFormationClient cfn, S3Client s3, String stackName) {
+        try {
+            cfn.describeStackResources(r -> r.stackName(stackName)).stackResources().stream()
+                    .filter(r -> "AWS::S3::Bucket".equals(r.resourceType()) && r.physicalResourceId() != null)
+                    .forEach(r -> s3.listObjectsV2(l -> l.bucket(r.physicalResourceId())).contents()
+                            .forEach(o -> s3.deleteObject(d -> d.bucket(r.physicalResourceId()).key(o.key()))));
+            cfn.deleteStack(d -> d.stackName(stackName));
+            waitWhileInProgress(cfn, stackName);
+        } catch (RuntimeException cleanupFailed) {
+            System.out.println("Could not clean up stack " + stackName + ": " + cleanupFailed.getMessage());
+        }
     }
 
     /**

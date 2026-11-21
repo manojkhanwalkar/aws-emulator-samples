@@ -102,10 +102,12 @@ public final class S14_S3EventNotifications {
                 s3.putObject(p -> p.bucket(bucket).key("tmp/scratch.txt"), RequestBody.fromString("ignored"));
                 System.out.println("Uploaded uploads/report.csv, invoices/invoice-17.pdf and tmp/scratch.txt");
 
-                List<Message> events = receive(sqs, queueUrl);
-                for (Message message : events) {
+                List<Message> received = receive(sqs, queueUrl);
+                for (Message message : received) {
                     System.out.println("Queue got: " + describe(message.body()));
                 }
+                // A test event that arrives late is not one of the uploads: leave it out of the count.
+                List<Message> events = received.stream().filter(m -> !m.body().contains("s3:TestEvent")).toList();
                 Checks.expect(events.size() == 1 && events.getFirst().body().contains("\"key\":\"uploads/report.csv\""),
                         "Expected exactly one event, for uploads/report.csv");
 
@@ -120,7 +122,7 @@ public final class S14_S3EventNotifications {
                 sqs.deleteQueue(d -> d.queueUrl(queueUrl));
                 lambda.deleteFunction(d -> d.functionName(functionName));
                 LambdaFunctions.deleteRole(iam, roleName);
-                deleteLogGroup(logs, "/aws/lambda/" + functionName);
+                LambdaFunctions.deleteLogGroup(logs, functionName);
             }
             System.out.println("Deleted the bucket, queue, function, role and log group");
         }
@@ -164,14 +166,6 @@ public final class S14_S3EventNotifications {
             }
         }
         return lines;
-    }
-
-    private static void deleteLogGroup(CloudWatchLogsClient logs, String group) {
-        try {
-            logs.deleteLogGroup(d -> d.logGroupName(group));
-        } catch (ResourceNotFoundException alreadyGone) {
-            // the function never ran
-        }
     }
 
     /** The interesting parts of an S3 event message: its event name and object key. */

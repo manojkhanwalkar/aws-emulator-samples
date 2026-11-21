@@ -11,8 +11,9 @@ import software.amazon.awssdk.services.dynamodb.model.KeyType;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
 /**
- * Sample 11: Regions. One emulator does not keep resources apart by Region the way AWS does, so to
- * test several Regions, run one emulator per Region. Starts its own emulators: {@code aws-emulator}
+ * Sample 11: Regions. One emulator keeps most resources apart by Region, as AWS does, but not all
+ * (CloudWatch Logs log groups are shared by every Region), so to test several Regions reliably, run one
+ * emulator per Region. Starts its own emulators: {@code aws-emulator}
  * only needs to be installed.
  *
  * <p>The emulator accepts any Region in a request, but the guide warns: "it doesn't keep resources

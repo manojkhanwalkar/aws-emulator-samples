@@ -7,6 +7,7 @@ import software.amazon.awssdk.awscore.retry.AwsRetryStrategy;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.sfn.SfnClient;
@@ -75,7 +76,8 @@ public final class S17_StepFunctions {
 
         try (SfnClient sfn = emulator.client(SfnClient.builder());
              LambdaClient lambda = emulator.client(LambdaClient.builder());
-             IamClient iam = emulator.client(IamClient.builder())) {
+             IamClient iam = emulator.client(IamClient.builder());
+             CloudWatchLogsClient logs = emulator.client(CloudWatchLogsClient.builder())) {
             String lambdaRoleArn = LambdaFunctions.createRole(iam, lambdaRole, "lambda.amazonaws.com", LambdaFunctions.LOGS_POLICY);
             String functionArn = LambdaFunctions.createFunction(lambda, functionName, "python3.12",
                     "lambda_function.handler", lambdaRoleArn, "lambda_function.py", TAX_FUNCTION);
@@ -129,10 +131,11 @@ public final class S17_StepFunctions {
                     }
                 }
                 lambda.deleteFunction(d -> d.functionName(functionName));
+                LambdaFunctions.deleteLogGroup(logs, functionName);
                 LambdaFunctions.deleteRole(iam, sfnRole);
                 LambdaFunctions.deleteRole(iam, lambdaRole);
             }
-            System.out.println("Deleted the state machines, the function and the roles");
+            System.out.println("Deleted the state machines, the function, its log group and the roles");
         }
         System.out.println();
     }

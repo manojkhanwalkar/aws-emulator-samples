@@ -73,8 +73,9 @@ public final class Emulator implements AutoCloseable {
     public static final int DEFAULT_PORT = 9297;
 
     /**
-     * The emulator accepts any Region, but does not keep resources apart by Region the way AWS does, so
-     * use one Region for everything (one emulator per Region if you must test several). us-east-1 is
+     * The emulator accepts any Region and keeps most resources apart by Region, but not all of them
+     * (CloudWatch Logs log groups are shared; see sample 11), so use one Region for everything (one
+     * emulator per Region if you must test several). us-east-1 is
      * also what its own {@code config} file names.
      */
     public static final Region REGION = Region.US_EAST_1;
@@ -181,7 +182,7 @@ public final class Emulator implements AutoCloseable {
                 .build();
         return builder
                 .endpointOverride(endpoint)              // 1. send requests to the emulator, not to AWS
-                .region(region)                          // 2. one Region for everything
+                .region(region)                          // 2. the Region (normally REGION)
                 .credentialsProvider(signingCredentials) // 3. sign with this emulator run's keys (set explicitly,
                                                          //    so AWS_ACCESS_KEY_ID & co. in your environment are ignored)
                 .httpClient(httpClient)                  // 4. trust the emulator's HTTPS certificate

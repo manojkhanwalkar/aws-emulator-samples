@@ -291,6 +291,10 @@ relies on. To run fidelity tests yourself against a newer emulator, use the suit
 
 ### Gaps found in emulator 1.0.531
 
+Found with 1.0.531 and still there in 1.0.550 (reported as aws/aws-emulator#584, #585 and on #539). CI
+installs the newest LTS release, so a fix in a later version shows up as a failing sample: update the
+sample and this table then.
+
 The samples show these honestly rather than hiding them; each prints what the emulator did.
 
 | Where | What the emulator does | What AWS does |
@@ -304,7 +308,7 @@ The samples show these honestly rather than hiding them; each prints what the em
 
 Everything else these samples try behaves as on AWS in 1.0.531, including some details that are easy
 to get wrong: S3 and EventBridge refuse to deliver to a queue whose policy does not allow them, S3 sends
-an `s3:TestEvent` first and refuses overlapping notification rules, `DeleteStack` fails on a non-empty
+an `s3:TestEvent` first, `DeleteStack` fails on a non-empty
 bucket, `TransactionCanceledException` carries per-item reasons, TTL starts as `ENABLING`, expired
 presigned URLs get `403 AccessDenied`, and Lambda writes function logs to CloudWatch Logs when its role
 allows it.

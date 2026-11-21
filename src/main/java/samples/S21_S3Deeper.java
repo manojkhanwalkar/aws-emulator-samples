@@ -123,18 +123,18 @@ public final class S21_S3Deeper {
                 .credentialsProvider(emulator.credentials())
                 .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
                 .build()) {
-            URI url = URI.create(presigner.presignGetObject(p -> p.signatureDuration(Duration.ofSeconds(2))
+            URI url = URI.create(presigner.presignGetObject(p -> p.signatureDuration(Duration.ofSeconds(5))
                     .getObjectRequest(g -> g.bucket(bucket).key(key))).url().toString());
-            System.out.println("Presigned GET URL, valid 2 seconds: " + url.toString()
+            System.out.println("Presigned GET URL, valid 5 seconds: " + url.toString()
                     .replaceAll("X-Amz-(Credential|Date|Signature)=[^&]+", "X-Amz-$1=..."));
 
             // Anyone with the URL can download, with no keys: a plain HTTP GET.
             HttpResponse<String> before = get(emulator, url);
             System.out.println("  GET now:            HTTP " + before.statusCode() + " \"" + before.body() + "\"");
-            Checks.pause(Duration.ofSeconds(3));
+            Checks.pause(Duration.ofSeconds(6));
             HttpResponse<String> after = get(emulator, url);
             String code = after.body().replaceAll("(?s).*<Code>([^<]*)</Code>.*", "$1");
-            System.out.println("  GET after 3 seconds: HTTP " + after.statusCode() + " " + code + " (expired)");
+            System.out.println("  GET after 6 seconds: HTTP " + after.statusCode() + " " + code + " (expired)");
             Checks.expect(before.statusCode() == 200 && after.statusCode() == 403, "Expected 200 then 403");
         }
     }

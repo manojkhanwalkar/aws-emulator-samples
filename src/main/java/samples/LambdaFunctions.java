@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.cloudwatchlogs.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 
@@ -68,5 +70,17 @@ final class LambdaFunctions {
                 .code(c -> c.zipFile(zip(fileName, source))).timeout(10)).functionArn();
         lambda.waiter().waitUntilFunctionActiveV2(w -> w.functionName(name));
         return arn;
+    }
+
+    /**
+     * Deletes the {@code /aws/lambda/<function>} log group that Lambda creates when a function with
+     * {@link #LOGS_POLICY} runs. Deleting the function does not delete it, on AWS or in the emulator.
+     */
+    static void deleteLogGroup(CloudWatchLogsClient logs, String functionName) {
+        try {
+            logs.deleteLogGroup(d -> d.logGroupName("/aws/lambda/" + functionName));
+        } catch (ResourceNotFoundException neverRan) {
+            // the function never ran, so it never logged
+        }
     }
 }
