@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="23 - JUnit extension test" type="JUnit" factoryName="JUnit">
+    <module name="aws-emulator-samples" />
+    <option name="PACKAGE_NAME" value="samples.junit" />
+    <option name="MAIN_CLASS_NAME" value="samples.junit.S23_JUnitExtensionTest" />
+    <option name="TEST_OBJECT" value="class" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
