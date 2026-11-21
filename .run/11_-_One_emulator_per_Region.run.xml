@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="11 - One emulator per Region" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="samples.S11_OneEmulatorPerRegion" />
+    <module name="aws-emulator-samples" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

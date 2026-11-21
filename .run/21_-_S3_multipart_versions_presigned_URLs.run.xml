@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="21 - S3 multipart, versions, presigned URLs" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="samples.S21_S3Deeper" />
+    <module name="aws-emulator-samples" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

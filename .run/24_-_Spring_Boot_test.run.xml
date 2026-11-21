@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="24 - Spring Boot test" type="JUnit" factoryName="JUnit">
+    <module name="aws-emulator-samples" />
+    <option name="PACKAGE_NAME" value="samples.spring" />
+    <option name="MAIN_CLASS_NAME" value="samples.spring.S24_SpringBootTest" />
+    <option name="TEST_OBJECT" value="class" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
