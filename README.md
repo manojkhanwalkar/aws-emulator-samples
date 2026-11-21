@@ -25,6 +25,43 @@ and click the green arrow.
 | 9 | [`S09_PrivateEmulatorPerRun`](src/main/java/samples/S09_PrivateEmulatorPerRun.java) | Start your own emulator from code, on a free port, with separate empty state, and stop it |
 | — | [`EmulatorBackedTest`](src/test/java/samples/EmulatorBackedTest.java) | The same in a JUnit test: the test class gets its own emulator; one test also uses `--auth off` |
 
+**How the emulator works**
+
+| # | Sample | What you learn |
+|---|---|---|
+| 10 | [`S10_IamAndStsKeys`](src/main/java/samples/S10_IamAndStsKeys.java) | Keys made *in* the emulator work: an IAM user's access key, and STS `AssumeRole` temporary credentials. Its policy checks are not AWS's: not a permission test |
+| 11 | [`S11_OneEmulatorPerRegion`](src/main/java/samples/S11_OneEmulatorPerRegion.java) | One emulator does not keep every service apart by Region (CloudWatch Logs log groups show up in every Region); run one emulator per Region instead |
+| 12 | [`S12_LifecycleOptions`](src/main/java/samples/S12_LifecycleOptions.java) | `--idle-timeout` stops an emulator by itself, cleanly; how to cap its memory (explained, not run) |
+| 13 | [`scripts/cli-sample.sh`](scripts/cli-sample.sh) | Sample 1 with the AWS CLI, configured only with environment variables (`AWS_ENDPOINT_URL` and co.) |
+
+**Services working together**
+
+| # | Sample | What you learn |
+|---|---|---|
+| 14 | [`S14_S3EventNotifications`](src/main/java/samples/S14_S3EventNotifications.java) | Upload a file: S3 sends an event to an SQS queue and runs a Lambda function. Shows the queue policy S3 needs, the test event, prefix filters |
+| 15 | [`S15_EventBridgeToSqs`](src/main/java/samples/S15_EventBridgeToSqs.java) | An EventBridge rule with an event pattern (numeric match) delivers matching custom events to SQS, once the queue's policy allows it |
+| 16 | [`S16_LambdaFunctions`](src/main/java/samples/S16_LambdaFunctions.java) | Deploy Python and Node.js functions from zip files built in code and invoke them; function errors; which runtimes the emulator can run |
+| 17 | [`S17_StepFunctions`](src/main/java/samples/S17_StepFunctions.java) | A two-step state machine (Lambda task, then a Choice), as a Standard and as an Express workflow (`StartSyncExecution` and the host prefix) |
+| 18 | [`S18_CloudFormationStack`](src/main/java/samples/S18_CloudFormationStack.java) | Deploy a template with a bucket, a table and a queue, use them through the stack outputs, delete the stack (and why a non-empty bucket stops that) |
+
+**Deeper into one service**
+
+| # | Sample | What you learn |
+|---|---|---|
+| 19 | [`S19_SqsDeadLetterAndFifo`](src/main/java/samples/S19_SqsDeadLetterAndFifo.java) | A dead-letter queue (`maxReceiveCount`) and moving messages back; FIFO order per message group and deduplication |
+| 20 | [`S20_DynamoDbDeeper`](src/main/java/samples/S20_DynamoDbDeeper.java) | `TransactWriteItems` cancelled by a condition, with its cancellation reasons; a GSI query; pagination; TTL |
+| 21 | [`S21_S3Deeper`](src/main/java/samples/S21_S3Deeper.java) | Multipart upload, versioning and delete markers, presigned URLs accepted and then refused once expired |
+| 22 | [`S22_KmsAndSecrets`](src/main/java/samples/S22_KmsAndSecrets.java) | KMS encrypt/decrypt with an encryption context, data keys, and a Secrets Manager secret under your own key (unreadable once the key is disabled) |
+
+**Testing patterns**
+
+| # | Sample | What you learn |
+|---|---|---|
+| 23 | [`@WithAwsEmulator`](src/test/java/samples/junit/WithAwsEmulator.java), [`AwsEmulatorExtension`](src/test/java/samples/junit/AwsEmulatorExtension.java), [`S23_JUnitExtensionTest`](src/test/java/samples/junit/S23_JUnitExtensionTest.java) | A JUnit 5 extension: one private emulator per test class, and SDK clients injected as test method parameters |
+| 24 | [`S24_SpringBootTest`](src/test/java/samples/spring/S24_SpringBootTest.java) | A Spring Boot test: `@DynamicPropertySource` points the application's own `S3Client` bean at a private emulator |
+| 25 | [`S25_AsyncClients`](src/main/java/samples/S25_AsyncClients.java) | `S3AsyncClient` and `DynamoDbAsyncClient` on the Netty HTTP client, and how its TLS trust is set |
+| 26 | [`scripts/check-project.sh`](scripts/check-project.sh) | "Does my project work on it?": the fidelity tests and the release's fidelity scores for just the operations you call ([below](#does-my-project-work-on-aws-emulator)) |
+
 Two helper classes do the plumbing, and are worth reading first:
 
 - [`Emulator`](src/main/java/samples/emulator/Emulator.java) connects to a running emulator and points any AWS SDK client at it.
@@ -71,12 +108,12 @@ emulator accepts.
 
 | Option | What it does | Where |
 |---|---|---|
-| *(none)* | HTTPS on `127.0.0.1:9297`, requests must be signed, runs until Ctrl+C | samples 1–8 |
+| *(none)* | HTTPS on `127.0.0.1:9297`, requests must be signed, runs until Ctrl+C | samples 1–8, 10, 14–22, 25 |
 | `-p 9300` | Another port. Each port has its own folder, keys and resources, so several emulators can run side by side | `AWS_EMULATOR_PORT` below |
 | `-p 0` | The operating system picks a free port; read it from `endpoint_url` in the JSON startup line of the log | `EmulatorProcess` |
 | `-t off` | No usage telemetry for this run (it is on by default) | everywhere |
-| `--idle-timeout 600` | Stops by itself after 600 seconds without an API call, so a forgotten emulator doesn't keep running | `EmulatorProcess` |
-| `--auth off` | Serves every request, signed or not, and writes no credentials file. Only for throwaway setups | `EmulatorBackedTest` |
+| `--idle-timeout 600` | Stops by itself after 600 seconds without an API call, so a forgotten emulator doesn't keep running | `EmulatorProcess`; sample 12 uses `--idle-timeout 3` to watch it stop |
+| `--auth off` | Serves every request, signed or not, and writes no credentials file. Only for throwaway setups | `EmulatorBackedTest`, sample 23 |
 | `-v` | Prints the version | install check |
 
 See the [command reference](https://docs.aws.amazon.com/emulator/latest/userguide/cli-reference.html).
@@ -100,8 +137,8 @@ See the [command reference](https://docs.aws.amazon.com/emulator/latest/userguid
    If it says `Address already in use`, something else has port 9297: start it with `-p 9300` and see
    the note on other ports below.
 4. **Run a sample:** open it and click the green arrow next to `main`, or pick one of the ready-made run
-   configurations in the toolbar (*0 - Run all samples*, *1 - Connect and check*, …). Sample 9 and the
-   JUnit test start their own emulators, so for those only step 1 is needed.
+   configurations in the toolbar (*0 - Run all samples*, *1 - Connect and check*, …). Samples 9, 11
+   and 12 and the JUnit tests start their own emulators, so for those only step 1 is needed.
 
 From a terminal instead (with Maven 3.9 or later installed):
 
@@ -190,6 +227,88 @@ All samples ran.
   That replaces the JVM's default trust store, so other HTTPS calls from that JVM then fail; this is why
   `Emulator` trusts `ca.pem` in its SDK clients only.
 
+## More on samples 10 to 26
+
+### Prerequisites
+
+Samples 10 to 25 need nothing beyond the first nine: AWS Emulator, and a JDK. In addition:
+
+- **Memory cap (sample 12, explained only).** The emulator keeps everything in memory (about 160 MiB
+  idle, growing with what your tests create) and has no memory option of its own. Cap it from outside:
+
+  ```bash
+  systemd-run --user --scope -p MemoryMax=2G -p MemorySwapMax=0 aws-emulator     # Linux, cgroup v2
+  docker run --rm --memory=2g --memory-swap=2g ... aws-emulator                  # Docker
+  ```
+
+  Over the cap the kernel kills it with exit code 137 (128 + SIGKILL): its resources are lost and,
+  as it was not a clean stop, its files in `~/.aws/emulator/<port>/` stay until the next start on that
+  port. The sample does not demonstrate this, on purpose: filling an emulator until it is killed only
+  sets off out-of-memory alerts. See [Getting started on Linux](https://docs.aws.amazon.com/emulator/latest/userguide/getting-started-linux.html).
+- **Sample 13** needs the [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+  and `curl`. To install the CLI for your user only, without `sudo`: download and unzip the installer,
+  then `./aws/install -i ~/.local/aws-cli -b ~/.local/bin`.
+- **Sample 26** needs `curl` and `python3`, and internet access (it reads two files from GitHub).
+- **Sample 24** uses Spring Boot (`spring-boot-test`) in **test scope only**, so the samples in
+  `src/main` stay plain Java and the jar has no Spring in it.
+
+Samples 13 and 26 are shell scripts: run them from a terminal (`scripts/cli-sample.sh`) or with their
+run configurations. Samples 23 and 24 are tests: run them with the green arrow next to the class, or
+`mvn test -Dtest='S23_*'`. Samples 11 and 12 start their own emulators; the rest use the running one.
+
+### Does my project work on AWS Emulator?
+
+AWS publishes [fidelity tests](https://github.com/aws/aws-emulator-evaluation-suite) (short boto3
+programs, each checked against real AWS) and, with each [release](https://github.com/aws/aws-emulator/releases),
+fidelity scores: which of those tests that release passes (the `scores.json.gz` asset). The guide's
+[check-project](https://docs.aws.amazon.com/emulator/latest/userguide/check-project.html) page explains how
+to use them: list the operations your project calls, find the fidelity tests for them in
+`manifest.jsonl`, and check their scores for your release. For operations no test covers, compare the
+emulator with AWS yourself.
+
+`scripts/check-project.sh` does those steps for the operations listed in
+[`scripts/project-operations.txt`](scripts/project-operations.txt) (this project's; write your own list the
+same way, one `service:Operation` per line):
+
+```bash
+scripts/check-project.sh                          # the installed emulator's release
+scripts/check-project.sh -r v1.0.531 -v           # a given release; -v names the failing tests
+scripts/check-project.sh -f my-operations.txt     # your project's operations
+```
+
+```text
+Operation                                      tests  passed  failed  unscored
+s3:PutBucketNotificationConfiguration            128     ...
+stepfunctions:StartSyncExecution                  58      45      13         0
+...
+```
+
+A test counts for an operation if it calls it, so widely used calls (`sts:GetCallerIdentity`,
+`sqs:CreateQueue`) appear in many tests about other things. Read the failing tests for the operations
+you depend on (`behavioral/<service>/check_<name>.py`) to see whether they check behaviour your project
+relies on. To run fidelity tests yourself against a newer emulator, use the suite's own runner
+(`fidelity-tests-runner`, see its README; it needs [uv](https://docs.astral.sh/uv/)).
+
+### Gaps found in emulator 1.0.531
+
+The samples show these honestly rather than hiding them; each prints what the emulator did.
+
+| Where | What the emulator does | What AWS does |
+|---|---|---|
+| IAM policies (10) | An IAM user with no policy is refused by S3 and DynamoDB, but SQS `ListQueues` succeeds | Refuses all three |
+| Regions (11) | DynamoDB, SQS, SNS, KMS, Secrets Manager and SSM keep resources per Region, but CloudWatch Logs log groups are shared by every Region | Every one of these is regional |
+| Lambda runtimes (16) | Runs `python3.x` (in a built-in RustPython that reports Python 3.12, whatever the runtime says) and `nodejs*.x` (a built-in engine that reports `v20.0.0`, `v22.0.0`...). Other runtimes (`java21`, `ruby3.3`, `provided.al2023`, `dotnet8`) can be created, but `Invoke` fails with HTTP 502 `InvalidRuntimeException` | Runs every supported runtime |
+| Lambda isolation (16) | Function code runs on your machine with your user's permissions | Runs in an isolated environment |
+| Step Functions (17) | `StartSyncExecution` works only with host prefix injection off (`sync-127.0.0.1` does not resolve); `Emulator.client(...)` turns it off, as the guide advises | (Not an emulator gap: AWS needs the prefix) |
+| Key and bucket policies | Never checked (see the guide's Security page) | Checked |
+
+Everything else these samples try behaves as on AWS in 1.0.531, including some details that are easy
+to get wrong: S3 and EventBridge refuse to deliver to a queue whose policy does not allow them, S3 sends
+an `s3:TestEvent` first and refuses overlapping notification rules, `DeleteStack` fails on a non-empty
+bucket, `TransactionCanceledException` carries per-item reasons, TTL starts as `ENABLING`, expired
+presigned URLs get `403 AccessDenied`, and Lambda writes function logs to CloudWatch Logs when its role
+allows it.
+
 ## How the project is checked
 
 Every pull request runs:
@@ -223,9 +342,14 @@ pom.xml                         Maven build: AWS SDK for Java 2.x, JUnit, exec p
 src/main/java/samples/
   emulator/Emulator.java        connect to a running emulator; build SDK clients for it
   emulator/EmulatorProcess.java start and stop a private emulator
-  S01_… to S09_…                the samples
-  RunAllSamples.java            runs them all in order
+  S01_… to S25_…                the samples (13, 23, 24 and 26 are not in this folder)
+  Checks.java, LambdaFunctions.java   small helpers the samples share
+  RunAllSamples.java            runs all the Java samples in order
+scripts/cli-sample.sh           sample 13, the AWS CLI with environment variables
+scripts/check-project.sh        sample 26, fidelity tests and scores for your operations
 src/main/resources/simplelogger.properties   SDK logging level (warn; set debug to see requests)
 src/test/java/samples/            JUnit tests: every sample against a private emulator, and the helpers
+src/test/java/samples/junit/      sample 23, a JUnit 5 extension (@WithAwsEmulator) and its test
+src/test/java/samples/spring/     sample 24, a Spring Boot test
 .github/                          CI, CodeQL, security checks, release, Dependabot, PR template
 ```
