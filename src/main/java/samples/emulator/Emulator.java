@@ -73,8 +73,9 @@ public final class Emulator implements AutoCloseable {
     public static final int DEFAULT_PORT = 9297;
 
     /**
-     * The emulator accepts any Region, but does not keep resources apart by Region the way AWS does, so
-     * use one Region for everything (one emulator per Region if you must test several). us-east-1 is
+     * The emulator accepts any Region and keeps most resources apart by Region, but not all of them
+     * (CloudWatch Logs log groups are shared; see sample 11), so use one Region for everything (one
+     * emulator per Region if you must test several). us-east-1 is
      * also what its own {@code config} file names.
      */
     public static final Region REGION = Region.US_EAST_1;
@@ -158,6 +159,19 @@ public final class Emulator implements AutoCloseable {
      */
     public <B extends AwsClientBuilder<B, C> & AwsSyncClientBuilder<B, C>, C> C client(
             B builder, AwsCredentialsProvider signingCredentials) {
+        return client(builder, signingCredentials, REGION);
+    }
+
+    /**
+     * Like {@link #client(AwsClientBuilder)}, but for another Region. Only for showing how the emulator
+     * treats Regions (sample 11); normally use one Region throughout, {@link #REGION}.
+     */
+    public <B extends AwsClientBuilder<B, C> & AwsSyncClientBuilder<B, C>, C> C client(B builder, Region region) {
+        return client(builder, credentials, region);
+    }
+
+    private <B extends AwsClientBuilder<B, C> & AwsSyncClientBuilder<B, C>, C> C client(
+            B builder, AwsCredentialsProvider signingCredentials, Region region) {
         // Some operations make the SDK put a prefix in front of the host name (for example "data-" for
         // Cloud Map DiscoverInstances), which would turn 127.0.0.1 into a host that does not exist. The
         // emulator guide's fix for Java: turn host prefix injection off. Merged into whatever override
@@ -168,7 +182,7 @@ public final class Emulator implements AutoCloseable {
                 .build();
         return builder
                 .endpointOverride(endpoint)              // 1. send requests to the emulator, not to AWS
-                .region(REGION)                          // 2. one Region for everything
+                .region(region)                          // 2. the Region (normally REGION)
                 .credentialsProvider(signingCredentials) // 3. sign with this emulator run's keys (set explicitly,
                                                          //    so AWS_ACCESS_KEY_ID & co. in your environment are ignored)
                 .httpClient(httpClient)                  // 4. trust the emulator's HTTPS certificate
@@ -206,6 +220,14 @@ public final class Emulator implements AutoCloseable {
 
     public int port() {
         return port;
+    }
+
+    /**
+     * The trust managers that trust exactly this emulator's {@code ca.pem}, for HTTP clients that
+     * {@link #client} does not build, such as the Netty client of the async SDK clients (sample 25).
+     */
+    public TrustManager[] trustManagers() {
+        return trustManagers.clone();
     }
 
     /** The folder holding this run's credentials, certificate and config file. */

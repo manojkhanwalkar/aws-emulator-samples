@@ -24,6 +24,7 @@
         <aws-sdk.version>2.58.0</aws-sdk.version>
         <junit.version>6.1.3</junit.version>
         <slf4j.version>2.0.20</slf4j.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
         <!-- What `mvn exec:java` runs; pick another sample with -Dexec.mainClass=samples.S02_S3Buckets -->
         <exec.mainClass>samples.RunAllSamples</exec.mainClass>
         <jacoco.version>0.8.16</jacoco.version>
@@ -47,6 +48,13 @@
                 <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- netty-nio-client asks for slf4j-api 1.7, which cannot see slf4j-simple 2.x (the SDK then
+                 logs nothing and SLF4J prints a warning). Keep the API at the binding's version. -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -77,10 +85,43 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>secretsmanager</artifactId>
         </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>iam</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cloudwatchlogs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>eventbridge</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>lambda</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sfn</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cloudformation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>kms</artifactId>
+        </dependency>
         <!-- The HTTP client the samples configure to trust the emulator's own HTTPS certificate. -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
+        </dependency>
+        <!-- The non-blocking HTTP client behind the async clients (S3AsyncClient, ...), sample 25. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>netty-nio-client</artifactId>
         </dependency>
 
         <!-- Quiet logging: the SDK logs through SLF4J; this prints warnings and errors only
@@ -94,6 +135,15 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Sample 24 only: a Spring Boot test. Test scope, so the samples themselves stay free of Spring.
+             spring-boot-test brings spring-boot and spring-test; no starters, so no second logging
+             backend next to slf4j-simple. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
+            <version>${spring-boot.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
